@@ -107,6 +107,11 @@ panel.innerHTML=`
     </div>
   </div>
 
+  <label style="display:flex;align-items:center;gap:7px;margin-bottom:10px;cursor:pointer;background:#1a1a1a;border:1px solid #2e2e2e;border-radius:5px;padding:7px 9px;">
+    <input type="checkbox" id="${ID}-auto" checked style="accent-color:#ff4d4d;cursor:pointer;width:13px;height:13px;">
+    <span style="color:#aaa;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Auto Delays</span>
+    <span style="color:#444;font-size:10px;margin-left:auto;">scales w/ difficulty</span>
+  </label>
   <button id="${ID}-btn" style="width:100%;background:#ff4d4d;color:#fff;border:none;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:monospace;letter-spacing:2px;font-size:13px;transition:background 0.2s;">START</button>
   <div id="${ID}-status" style="margin-top:8px;font-size:10px;color:#444;text-align:center;min-height:14px;">idle</div>
 </div>`;
@@ -211,11 +216,22 @@ function executeAnswer(){
   isAnswering=false;
 }
 
+function computeDelay(){
+  const ans=getAnswer()||'';
+  const isInput=!!document.querySelector('input[type="text"].answer-input,input.answer-input,#answer-input,input[name="answer"]');
+  if(isInput){const base=14+ans.length*0.4;return Math.min(base,26)*(0.85+Math.random()*0.3);}
+  return 5+Math.random()*7;
+}
+
 function startCountdown(){
   if(countdownTimer)return;
+  const autoOn=panel.querySelector('#'+ID+'-auto')&&panel.querySelector('#'+ID+'-auto').checked;
+  let delaySec;
+  if(autoOn){delaySec=computeDelay();}
+  else{
   const minVal=parseFloat(panel.querySelector('#'+ID+'-min').value)||3.5;
   const maxVal=parseFloat(panel.querySelector('#'+ID+'-max').value)||8;
-  const delaySec=Math.random()*(Math.max(minVal,maxVal)-Math.min(minVal,maxVal))+Math.min(minVal,maxVal);
+  delaySec=Math.random()*(Math.max(minVal,maxVal)-Math.min(minVal,maxVal))+Math.min(minVal,maxVal);}
   countdownSecLeft=delaySec;
   countdownTimer=setInterval(()=>{
     if(!isRunning){clearInterval(countdownTimer);countdownTimer=null;return;}
