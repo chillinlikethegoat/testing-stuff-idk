@@ -1,12 +1,9 @@
-javascript:(function(){const ID='wraith-solver-v2';const prev=document.getElementById(ID);if(prev){prev.remove();return;}
+(function(){const ID='wraith-solver-v2';const prev=document.getElementById(ID);if(prev){prev.remove();return;}
 
 function vis(el){if(!el)return false;try{const s=window.getComputedStyle(el);if(s.display==='none'||s.visibility==='hidden'||parseFloat(s.opacity)===0)return false;const r=el.getBoundingClientRect();return(r.width>0&&r.height>0);}catch(e){return el.offsetWidth>0;}}
-
 function clean(s){return(s||'').replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim().toLowerCase();}
-
 function humanClick(el){if(!el)return;const r=el.getBoundingClientRect();const x=r.left+r.width*0.3+Math.random()*r.width*0.4;const y=r.top+r.height*0.3+Math.random()*r.height*0.4;['mouseover','mouseenter','mousemove','mousedown','mouseup','click'].forEach(t=>{el.dispatchEvent(new MouseEvent(t,{bubbles:true,cancelable:true,view:window,clientX:x,clientY:y}));});try{el.click();}catch(e){}}
-
-function typeText(el,text,cb){el.focus();el.value='';let i=0;function next(){if(i<text.length){el.value+=text[i];['input','change','keyup'].forEach(t=>el.dispatchEvent(new Event(t,{bubbles:true})));i++;setTimeout(next,25+Math.random()*45);}else if(cb)cb();}next();}
+function typeText(el,text,cb){el.focus();el.value='';let i=0;function next(){if(i<text.length){el.value+=text[i];['input','change','keyup'].forEach(t=>el.dispatchEvent(new Event(t,{bubbles:true})));i++;setTimeout(next,22+Math.random()*42);}else if(cb)cb();}next();}
 
 function getAnswer(){try{
   if(typeof window.activity_type!=='undefined'&&window.activity_type==='paragraph_parallel'){
@@ -34,11 +31,7 @@ function getAnswer(){try{
   const pText=clean(window.sentence_prompt||(promptEl&&promptEl.innerText)||'');
   if(pText){
     const pairs=[[window.l2sentences,window.l1sentences],[window.l1sentences,window.l2sentences],[window.uniquel2chunks,window.uniquel1chunks],[window.uniquel1chunks,window.uniquel2chunks],[window.uniquel2vocabchunks,window.uniquel1vocabchunks],[window.uniquel1vocabchunks,window.uniquel2vocabchunks]];
-    for(const[src,dst]of pairs){
-      if(!src||!dst)continue;
-      const i=src.findIndex(c=>clean(c)===pText||pText.includes(clean(c))||clean(c).includes(pText));
-      if(i!==-1&&dst[i])return dst[i];
-    }
+    for(const[src,dst]of pairs){if(!src||!dst)continue;const i=src.findIndex(c=>clean(c)===pText||pText.includes(clean(c))||clean(c).includes(pText));if(i!==-1&&dst[i])return dst[i];}
   }
 }catch(e){}return '';}
 
@@ -51,47 +44,72 @@ function getTiles(){
     return t.split(' ').length>=3&&t.length>10&&t.length<300;
   });
 }
-
-function hasActiveQuestion(){
-  const inp=document.getElementById('answer-input')||document.getElementById('one-word-input');
-  if(inp&&vis(inp))return true;
-  return getTiles().length>0;
-}
-
+function hasActiveQuestion(){const inp=document.getElementById('answer-input')||document.getElementById('one-word-input');if(inp&&vis(inp))return true;return getTiles().length>0;}
 function findTile(answer){
   const tiles=getTiles();if(!tiles.length)return null;
   const ca=clean(answer);if(!ca)return tiles[0];
   for(const t of tiles){if(clean(t.innerText||t.textContent)===ca)return t;}
-  const aWords=new Set(ca.split(' ').filter(w=>w.length>2));
-  let best=null,bestScore=0;
-  for(const t of tiles){
-    const ct=clean(t.innerText||t.textContent);
-    const tWords=ct.split(' ').filter(w=>w.length>2);
-    const hits=tWords.filter(w=>aWords.has(w)).length;
-    const score=hits/(Math.max(aWords.size,tWords.length)||1);
-    if(score>bestScore){bestScore=score;best=t;}
-  }
+  const aWords=new Set(ca.split(' ').filter(w=>w.length>2));let best=null,bestScore=0;
+  for(const t of tiles){const ct=clean(t.innerText||t.textContent);const tWords=ct.split(' ').filter(w=>w.length>2);const hits=tWords.filter(w=>aWords.has(w)).length;const score=hits/(Math.max(aWords.size,tWords.length)||1);if(score>bestScore){bestScore=score;best=t;}}
   return bestScore>0.35?best:tiles[0];
 }
-
-/* same advance-button logic as main */
 function findAdvanceButton(){
   const explicit=['#next-q-button','#findit-next-button','#modal-confirm-yes-button','#circuit-modal-proceed','.sr-start-notice button','.begin-or-resume','.btn-next','#next-btn','.next-btn','#next-button','.next-button','#next_button','.next_button','button.next','a.next','#continue-button','.continue-button','#circuit-continue','#next-question'];
   for(const s of explicit){try{const el=document.querySelector(s);if(el&&vis(el)&&!el.disabled&&!el.closest('#'+ID))return el;}catch(e){}}
   const blacklist=['back','return','exit','quit','cancel','close','setting','sound','music','logout','cookie','class','fullscreen'];
   const candidates=Array.from(document.querySelectorAll('button,a,input[type="button"],input[type="submit"],[role="button"]')).filter(el=>vis(el)&&!el.disabled&&!el.closest('#'+ID));
-  for(const el of candidates){
-    const txt=(el.innerText||el.value||el.textContent||'').trim().toLowerCase();
-    if(!txt||blacklist.some(b=>txt.includes(b)))continue;
-    if(txt==='next'||txt==='next question'||txt==='continue'||txt==='resume'||txt==='proceed'||txt==='yes'||txt==='ok'||txt.startsWith('next ')||txt==='continue circuit'||txt==='next set')return el;
-  }
+  for(const el of candidates){const txt=(el.innerText||el.value||el.textContent||'').trim().toLowerCase();if(!txt||blacklist.some(b=>txt.includes(b)))continue;if(txt==='next'||txt==='next question'||txt==='continue'||txt==='resume'||txt==='proceed'||txt==='yes'||txt==='ok'||txt.startsWith('next ')||txt==='continue circuit'||txt==='next set')return el;}
   return null;
 }
 
 /* ── UI ── */
 const panel=document.createElement('div');panel.id=ID;
-panel.style.cssText='position:fixed;top:100px;right:18px;width:260px;background:#111;color:#fff;border:2px solid #ff4d4d;border-radius:9px;padding:0;z-index:2147483647;font-family:monospace;font-size:12px;box-shadow:0 8px 32px rgba(0,0,0,0.95);user-select:none;';
-panel.innerHTML=`<div id="${ID}-head" style="background:#1e1e1e;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #ff4d4d;border-radius:7px 7px 0 0;cursor:move;"><span style="color:#ff4d4d;font-weight:bold;font-size:13px;">:: WRAITH SOLVER ::</span><span id="${ID}-x" style="cursor:pointer;color:#666;font-size:15px;">✕</span></div><div style="padding:12px;"><div style="display:flex;gap:6px;margin-bottom:8px;"><div style="flex:1;"><div style="color:#777;font-size:10px;margin-bottom:2px;">MIN (s)</div><input id="${ID}-min" type="number" value="3.5" step="0.5" min="1" style="width:100%;background:#222;border:1px solid #444;color:#fff;padding:4px 5px;border-radius:4px;font-family:monospace;box-sizing:border-box;"></div><div style="flex:1;"><div style="color:#777;font-size:10px;margin-bottom:2px;">MAX (s)</div><input id="${ID}-max" type="number" value="7" step="0.5" min="1" style="width:100%;background:#222;border:1px solid #444;color:#fff;padding:4px 5px;border-radius:4px;font-family:monospace;box-sizing:border-box;"></div><div style="flex:1;"><div style="color:#777;font-size:10px;margin-bottom:2px;">WRONGS</div><input id="${ID}-wrongs" type="number" value="1" min="0" max="10" style="width:100%;background:#222;border:1px solid #444;color:#fff;padding:4px 5px;border-radius:4px;font-family:monospace;box-sizing:border-box;"></div></div><div id="${ID}-peek" style="background:#0a0a0a;border:1px solid #2a2a2a;border-radius:5px;padding:7px;color:#00ff88;font-size:12px;min-height:32px;margin-bottom:8px;line-height:1.4;word-break:break-word;">answer: —</div><button id="${ID}-btn" style="width:100%;background:#ff4d4d;color:#fff;border:none;padding:9px;border-radius:5px;cursor:pointer;font-weight:bold;font-family:monospace;letter-spacing:1px;font-size:13px;">START</button><div id="${ID}-status" style="margin-top:7px;font-size:10px;color:#555;text-align:center;">idle</div></div>`;
+panel.style.cssText='position:fixed;top:80px;right:18px;width:270px;background:#0f0f0f;color:#fff;border:2px solid #ff4d4d;border-radius:10px;padding:0;z-index:2147483647;font-family:monospace;font-size:12px;box-shadow:0 12px 40px rgba(0,0,0,0.95);user-select:none;';
+panel.innerHTML=`
+<div id="${ID}-head" style="background:#1a1a1a;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2a2a2a;border-radius:8px 8px 0 0;cursor:move;">
+  <span style="color:#ff4d4d;font-weight:bold;font-size:13px;letter-spacing:2px;">WRAITH</span>
+  <span id="${ID}-x" style="cursor:pointer;color:#555;font-size:16px;line-height:1;">✕</span>
+</div>
+<div style="padding:12px 14px;">
+  <div style="display:flex;gap:8px;margin-bottom:10px;">
+    <div style="flex:1;">
+      <div style="color:#444;font-size:10px;margin-bottom:3px;text-transform:uppercase;letter-spacing:1px;">Min (s)</div>
+      <input id="${ID}-min" type="number" value="3.5" step="0.5" min="1" style="width:100%;background:#1a1a1a;border:1px solid #2e2e2e;color:#eee;padding:5px 6px;border-radius:5px;font-family:monospace;font-size:12px;box-sizing:border-box;">
+    </div>
+    <div style="flex:1;">
+      <div style="color:#444;font-size:10px;margin-bottom:3px;text-transform:uppercase;letter-spacing:1px;">Max (s)</div>
+      <input id="${ID}-max" type="number" value="8" step="0.5" min="1" style="width:100%;background:#1a1a1a;border:1px solid #2e2e2e;color:#eee;padding:5px 6px;border-radius:5px;font-family:monospace;font-size:12px;box-sizing:border-box;">
+    </div>
+    <div style="flex:1;">
+      <div style="color:#444;font-size:10px;margin-bottom:3px;text-transform:uppercase;letter-spacing:1px;">Min ✗</div>
+      <input id="${ID}-wmin" type="number" value="2" min="0" max="5" style="width:100%;background:#1a1a1a;border:1px solid #2e2e2e;color:#eee;padding:5px 6px;border-radius:5px;font-family:monospace;font-size:12px;box-sizing:border-box;">
+    </div>
+    <div style="flex:1;">
+      <div style="color:#444;font-size:10px;margin-bottom:3px;text-transform:uppercase;letter-spacing:1px;">Max ✗</div>
+      <input id="${ID}-wmax" type="number" value="3" min="0" max="8" style="width:100%;background:#1a1a1a;border:1px solid #2e2e2e;color:#eee;padding:5px 6px;border-radius:5px;font-family:monospace;font-size:12px;box-sizing:border-box;">
+    </div>
+  </div>
+
+  <div id="${ID}-peek" style="background:#0a0a0a;border:1px solid #1e1e1e;border-left:3px solid #ff4d4d;border-radius:5px;padding:7px 9px;color:#00e676;font-size:11px;min-height:30px;margin-bottom:10px;line-height:1.5;word-break:break-word;">—</div>
+
+  <div style="display:flex;gap:6px;margin-bottom:10px;">
+    <div style="flex:1;background:#1a1a1a;border:1px solid #222;border-radius:5px;padding:6px 8px;text-align:center;">
+      <div style="color:#444;font-size:9px;text-transform:uppercase;letter-spacing:1px;">answered</div>
+      <div id="${ID}-qcount" style="color:#eee;font-size:15px;font-weight:bold;margin-top:2px;">0</div>
+    </div>
+    <div style="flex:1;background:#1a1a1a;border:1px solid #222;border-radius:5px;padding:6px 8px;text-align:center;">
+      <div style="color:#444;font-size:9px;text-transform:uppercase;letter-spacing:1px;">wrong / set</div>
+      <div id="${ID}-wcount" style="color:#ff6b6b;font-size:15px;font-weight:bold;margin-top:2px;">0/0</div>
+    </div>
+    <div style="flex:1;background:#1a1a1a;border:1px solid #222;border-radius:5px;padding:6px 8px;text-align:center;">
+      <div style="color:#444;font-size:9px;text-transform:uppercase;letter-spacing:1px;">set</div>
+      <div id="${ID}-setnum" style="color:#eee;font-size:15px;font-weight:bold;margin-top:2px;">—</div>
+    </div>
+  </div>
+
+  <button id="${ID}-btn" style="width:100%;background:#ff4d4d;color:#fff;border:none;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:monospace;letter-spacing:2px;font-size:13px;transition:background 0.2s;">START</button>
+  <div id="${ID}-status" style="margin-top:8px;font-size:10px;color:#444;text-align:center;min-height:14px;">idle</div>
+</div>`;
 document.body.appendChild(panel);
 
 let drag=false,sx,sy,ox,oy;
@@ -102,55 +120,50 @@ document.addEventListener('mouseup',()=>drag=false);
 const peekBox=panel.querySelector('#'+ID+'-peek');
 const statusEl=panel.querySelector('#'+ID+'-status');
 const startBtn=panel.querySelector('#'+ID+'-btn');
+const qCountEl=panel.querySelector('#'+ID+'-qcount');
+const wCountEl=panel.querySelector('#'+ID+'-wcount');
+const setNumEl=panel.querySelector('#'+ID+'-setnum');
 panel.querySelector('#'+ID+'-x').onclick=()=>{stop();panel.remove();};
 
-/* ── state — mirrors main's pattern ── */
-let isRunning=false,isAnswering=false,loopInterval=null,countdownTimer=null,countdownSecLeft=0,scheduledNextTime=null,qCount=0,wrongsDone=0;
+/* ── state ── */
+let isRunning=false,isAnswering=false,loopInterval=null,countdownTimer=null,countdownSecLeft=0,scheduledNextTime=null;
+let qCount=0;
+/* per-chunk wrong tracking */
+let chunkWrongsDone=0,chunkWrongsTarget=0,lastSentenceRan=-1,lastSetNum=-1;
+
+function randBetween(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+function newChunkTarget(){
+  const wMin=parseInt(panel.querySelector('#'+ID+'-wmin').value)||2;
+  const wMax=parseInt(panel.querySelector('#'+ID+'-wmax').value)||3;
+  return randBetween(wMin,wMax);
+}
+
+function getCurrentSet(){
+  const m=(document.body.innerText||'').match(/Set\s+(\d+)\s+of\s+(\d+)/i);
+  return m?parseInt(m[1]):-1;
+}
+
+function detectChunkReset(){
+  const ran=typeof window.sentence_ran!=='undefined'?window.sentence_ran:-1;
+  const setNum=getCurrentSet();
+  let newChunk=false;
+  if(setNum>0&&setNum!==lastSetNum){newChunk=true;lastSetNum=setNum;}
+  else if(ran>=0&&ran<lastSentenceRan-1){newChunk=true;}/* sentence_ran jumped back */
+  if(ran>=0)lastSentenceRan=ran;
+  if(newChunk){chunkWrongsDone=0;chunkWrongsTarget=newChunkTarget();}
+}
+
+function updateStats(){
+  qCountEl.textContent=qCount;
+  wCountEl.textContent=chunkWrongsDone+'/'+chunkWrongsTarget;
+  const s=getCurrentSet();setNumEl.textContent=s>0?s:'—';
+}
 
 function setStatus(s){statusEl.textContent=s;}
-function refreshPeek(){const a=getAnswer();peekBox.textContent=a?'answer: '+a:'answer: not found yet';peekBox.style.color=a?'#00ff88':'#ff8c00';}
+function refreshPeek(){const a=getAnswer();peekBox.textContent=a||'—';peekBox.style.color=a?'#00e676':'#ff8c00';}
 
 function stop(){isRunning=false;isAnswering=false;scheduledNextTime=null;if(countdownTimer){clearInterval(countdownTimer);countdownTimer=null;}if(loopInterval){clearInterval(loopInterval);loopInterval=null;}startBtn.textContent='START';startBtn.style.background='#ff4d4d';setStatus('idle');}
 
-function executeAnswer(){
-  isAnswering=true;
-  const targetWrongs=parseInt(panel.querySelector('#'+ID+'-wrongs').value)||0;
-  const makeWrong=qCount>0&&wrongsDone<targetWrongs&&Math.random()<0.45;
-  const ans=getAnswer();
-
-  /* text input */
-  const inp=document.getElementById('answer-input')||document.getElementById('one-word-input');
-  if(inp&&vis(inp)&&ans){
-    const checkFn=window.section1_input_activity_INPUT_CHECK;
-    if(makeWrong){
-      wrongsDone++;setStatus('wrong answer...');
-      typeText(inp,ans.slice(0,-1)+'x',()=>{
-        if(typeof checkFn==='function')checkFn();
-        setTimeout(()=>{inp.value='';typeText(inp,ans,()=>{if(typeof checkFn==='function')checkFn();isAnswering=false;});},700+Math.random()*300);});
-    }else{
-      setStatus('typing...');
-      typeText(inp,ans,()=>{if(typeof checkFn==='function')checkFn();isAnswering=false;});}
-    return;}
-
-  /* tile */
-  const tiles=getTiles();
-  if(tiles.length>0){
-    const target=ans?findTile(ans):tiles[0];
-    if(makeWrong&&tiles.length>1){
-      const wrong=tiles.find(t=>t!==target)||tiles[tiles.length-1];
-      wrongsDone++;setStatus('wrong tile...');
-      humanClick(wrong);
-      setTimeout(()=>{setStatus('fixing...');if(target)humanClick(target);waitForOK(()=>{isAnswering=false;});},700+Math.random()*300);
-    }else{
-      setStatus('clicking: '+clean((target.innerText||'').slice(0,22))+'...');
-      humanClick(target);
-      waitForOK(()=>{isAnswering=false;});}
-    return;}
-
-  isAnswering=false;
-}
-
-/* after clicking a tile, poll specifically for an OK button before releasing control */
 function waitForOK(cb){
   let attempts=0;
   const poll=setInterval(()=>{
@@ -160,34 +173,58 @@ function waitForOK(cb){
       const t=(b.innerText||b.value||b.textContent||'').trim().toLowerCase();
       return t==='ok'||t==='okay';
     });
-    if(ok){
-      clearInterval(poll);
-      setStatus('clicking OK...');
-      setTimeout(()=>{humanClick(ok);cb();},400+Math.random()*300);
-      return;
-    }
-    attempts++;
-    if(attempts>20){clearInterval(poll);cb();}/* give up after 2s, let main loop handle it */
+    if(ok){clearInterval(poll);setStatus('clicking OK...');setTimeout(()=>{humanClick(ok);cb();},350+Math.random()*250);return;}
+    if(++attempts>25){clearInterval(poll);cb();}
   },100);
+}
+
+function executeAnswer(){
+  isAnswering=true;
+  detectChunkReset();
+  const makeWrong=chunkWrongsDone<chunkWrongsTarget&&Math.random()<0.5;
+  const ans=getAnswer();
+
+  const inp=document.getElementById('answer-input')||document.getElementById('one-word-input');
+  if(inp&&vis(inp)&&ans){
+    const checkFn=window.section1_input_activity_INPUT_CHECK;
+    if(makeWrong){
+      chunkWrongsDone++;setStatus('wrong on purpose...');updateStats();
+      typeText(inp,ans.slice(0,-1)+'x',()=>{if(typeof checkFn==='function')checkFn();setTimeout(()=>{inp.value='';typeText(inp,ans,()=>{if(typeof checkFn==='function')checkFn();isAnswering=false;});},650+Math.random()*350);});
+    }else{
+      setStatus('typing...');
+      typeText(inp,ans,()=>{if(typeof checkFn==='function')checkFn();isAnswering=false;});}
+    return;}
+
+  const tiles=getTiles();
+  if(tiles.length>0){
+    const target=ans?findTile(ans):tiles[0];
+    if(makeWrong&&tiles.length>1){
+      const wrong=tiles.find(t=>t!==target)||tiles[tiles.length-1];
+      chunkWrongsDone++;setStatus('wrong tile...');updateStats();
+      humanClick(wrong);
+      setTimeout(()=>{setStatus('fixing...');if(target)humanClick(target);waitForOK(()=>{isAnswering=false;});},650+Math.random()*350);
+    }else{
+      setStatus('→ '+clean((target.innerText||'').slice(0,24))+'...');
+      humanClick(target);waitForOK(()=>{isAnswering=false;});}
+    return;}
+
+  isAnswering=false;
 }
 
 function startCountdown(){
   if(countdownTimer)return;
   const minVal=parseFloat(panel.querySelector('#'+ID+'-min').value)||3.5;
-  const maxVal=parseFloat(panel.querySelector('#'+ID+'-max').value)||7;
+  const maxVal=parseFloat(panel.querySelector('#'+ID+'-max').value)||8;
   const delaySec=Math.random()*(Math.max(minVal,maxVal)-Math.min(minVal,maxVal))+Math.min(minVal,maxVal);
   countdownSecLeft=delaySec;
-  const targetWrongs=parseInt(panel.querySelector('#'+ID+'-wrongs').value)||0;
   countdownTimer=setInterval(()=>{
     if(!isRunning){clearInterval(countdownTimer);countdownTimer=null;return;}
     if(findAdvanceButton()){clearInterval(countdownTimer);countdownTimer=null;return;}
     countdownSecLeft-=0.1;
-    if(countdownSecLeft<=0){
-      clearInterval(countdownTimer);countdownTimer=null;
-      executeAnswer();
-    }else{
-      setStatus('clicking in '+countdownSecLeft.toFixed(1)+'s  wrongs: '+wrongsDone+'/'+targetWrongs);}
-  },100);}
+    if(countdownSecLeft<=0){clearInterval(countdownTimer);countdownTimer=null;qCount++;updateStats();executeAnswer();}
+    else{setStatus('answering in '+countdownSecLeft.toFixed(1)+'s');}
+  },100);
+}
 
 function tick(){
   if(!isRunning||isAnswering)return;
@@ -195,8 +232,8 @@ function tick(){
   const adv=findAdvanceButton();
   if(adv){
     if(countdownTimer){clearInterval(countdownTimer);countdownTimer=null;}
-    if(!scheduledNextTime){scheduledNextTime=Date.now()+1200;setStatus('next found...');}
-    else if(Date.now()>=scheduledNextTime){scheduledNextTime=null;humanClick(adv);qCount++;setStatus('next → q'+qCount);}
+    if(!scheduledNextTime){scheduledNextTime=Date.now()+1100+Math.random()*400;setStatus('moving to next...');}
+    else if(Date.now()>=scheduledNextTime){scheduledNextTime=null;humanClick(adv);setStatus('next →');}
     return;
   }
   scheduledNextTime=null;
@@ -206,10 +243,12 @@ function tick(){
 
 startBtn.onclick=()=>{
   if(isRunning){stop();}
-  else{isRunning=true;isAnswering=false;qCount=0;wrongsDone=0;scheduledNextTime=null;
-    startBtn.textContent='STOP';startBtn.style.background='#444';setStatus('running');
+  else{
+    isRunning=true;isAnswering=false;qCount=0;chunkWrongsDone=0;chunkWrongsTarget=newChunkTarget();lastSentenceRan=-1;lastSetNum=-1;scheduledNextTime=null;
+    startBtn.textContent='STOP';startBtn.style.background='#333';setStatus('running');
+    updateStats();
     if(loopInterval)clearInterval(loopInterval);
     loopInterval=setInterval(tick,300);tick();}};
 
-setInterval(refreshPeek,1200);
+setInterval(()=>{refreshPeek();updateStats();},1200);
 })();
