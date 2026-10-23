@@ -1,3 +1,4 @@
+- updated version 1.0
 (function(){const ID='wraith-solver-v2';const prev=document.getElementById(ID);if(prev){prev.remove();return;}
 
 function vis(el){if(!el)return false;try{const s=window.getComputedStyle(el);if(s.display==='none'||s.visibility==='hidden'||parseFloat(s.opacity)===0)return false;const r=el.getBoundingClientRect();return(r.width>0&&r.height>0);}catch(e){return el.offsetWidth>0;}}
