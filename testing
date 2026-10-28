@@ -110,11 +110,16 @@ panel.innerHTML=`
     </div>
   </div>
 
-  <label style="display:flex;align-items:center;gap:7px;margin-bottom:10px;cursor:pointer;background:#1a1a1a;border:1px solid #2e2e2e;border-radius:5px;padding:7px 9px;">
-    <input type="checkbox" id="${ID}-auto" checked style="accent-color:#ff4d4d;cursor:pointer;width:13px;height:13px;">
-    <span style="color:#aaa;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Auto Delays</span>
-    <span style="color:#444;font-size:10px;margin-left:auto;">scales w/ difficulty</span>
-  </label>
+  <div style="display:flex;gap:6px;margin-bottom:10px;">
+    <label style="flex:1;display:flex;align-items:center;gap:6px;cursor:pointer;background:#1a1a1a;border:1px solid #2e2e2e;border-radius:5px;padding:7px 9px;">
+      <input type="checkbox" id="${ID}-auto" checked style="accent-color:#ff4d4d;cursor:pointer;width:13px;height:13px;">
+      <span style="color:#aaa;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Auto Delays</span>
+    </label>
+    <label style="flex:1;display:flex;align-items:center;gap:6px;cursor:pointer;background:#1a1a1a;border:1px solid #2e2e2e;border-radius:5px;padding:7px 9px;">
+      <input type="checkbox" id="${ID}-perset" style="accent-color:#ff4d4d;cursor:pointer;width:13px;height:13px;">
+      <span style="color:#aaa;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Per Set ✗</span>
+    </label>
+  </div>
   <button id="${ID}-btn" style="width:100%;background:#ff4d4d;color:#fff;border:none;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:monospace;letter-spacing:2px;font-size:13px;transition:background 0.2s;">START</button>
   <div id="${ID}-status" style="margin-top:8px;font-size:10px;color:#444;text-align:center;min-height:14px;">idle</div>
 </div>`;
@@ -141,7 +146,7 @@ panel.querySelector('#'+ID+'-x').onclick=()=>{stop();panel.remove();};
 let isRunning=false,isAnswering=false,loopInterval=null,countdownTimer=null,countdownSecLeft=0,scheduledNextTime=null;
 let qCount=0;
 /* per-chunk wrong tracking */
-let chunkWrongsDone=0,chunkWrongsTarget=0;
+let chunkWrongsDone=0,chunkWrongsTarget=0,lastSetNum=-1;
 
 function randBetween(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
 function newChunkTarget(){
@@ -183,6 +188,10 @@ function waitForOK(cb){
 
 function executeAnswer(){
   isAnswering=true;
+  if(panel.querySelector('#'+ID+'-perset')&&panel.querySelector('#'+ID+'-perset').checked){
+    const curSet=getCurrentSet();
+    if(curSet>0&&curSet!==lastSetNum){lastSetNum=curSet;chunkWrongsDone=0;chunkWrongsTarget=newChunkTarget();updateStats();}
+  }
   const makeWrong=chunkWrongsDone<chunkWrongsTarget&&Math.random()<0.5;
   const ans=getAnswer();
 
@@ -257,7 +266,7 @@ function tick(){
 startBtn.onclick=()=>{
   if(isRunning){stop();}
   else{
-    isRunning=true;isAnswering=false;qCount=0;chunkWrongsDone=0;chunkWrongsTarget=newChunkTarget();scheduledNextTime=null;
+    isRunning=true;isAnswering=false;qCount=0;chunkWrongsDone=0;chunkWrongsTarget=newChunkTarget();lastSetNum=-1;scheduledNextTime=null;
     startBtn.textContent='STOP';startBtn.style.background='#333';setStatus('running');
     updateStats();
     if(loopInterval)clearInterval(loopInterval);
