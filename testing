@@ -2,7 +2,7 @@
 
 function vis(el){if(!el)return false;try{const s=window.getComputedStyle(el);if(s.display==='none'||s.visibility==='hidden'||parseFloat(s.opacity)===0)return false;const r=el.getBoundingClientRect();return(r.width>0&&r.height>0);}catch(e){return el.offsetWidth>0;}}
 function clean(s){return(s||'').replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim().toLowerCase();}
-function humanClick(el){if(!el)return;const r=el.getBoundingClientRect();const x=r.left+r.width*0.3+Math.random()*r.width*0.4;const y=r.top+r.height*0.3+Math.random()*r.height*0.4;['mouseover','mouseenter','mousemove','mousedown','mouseup','click'].forEach(t=>{el.dispatchEvent(new MouseEvent(t,{bubbles:true,cancelable:true,view:window,clientX:x,clientY:y}));});try{el.click();}catch(e){}}
+function humanClick(el){if(!el)return;const r=el.getBoundingClientRect();const x=r.left+r.width*0.3+Math.random()*r.width*0.4;const y=r.top+r.height*0.3+Math.random()*r.height*0.4;['mouseover','mouseenter','mousemove','mousedown','mouseup','click'].forEach(t=>{el.dispatchEvent(new MouseEvent(t,{bubbles:true,cancelable:true,view:window,clientX:x,clientY:y}));});try{const touch=new Touch({identifier:Date.now(),target:el,clientX:x,clientY:y,pageX:x+window.scrollX,pageY:y+window.scrollY,screenX:x,screenY:y,radiusX:1,radiusY:1,rotationAngle:0,force:1});el.dispatchEvent(new TouchEvent('touchstart',{bubbles:true,cancelable:true,touches:[touch],targetTouches:[touch],changedTouches:[touch]}));el.dispatchEvent(new TouchEvent('touchend',{bubbles:true,cancelable:true,touches:[],targetTouches:[],changedTouches:[touch]}));}catch(e){}try{el.click();}catch(e){}}
 function typeText(el,text,cb){el.focus();el.value='';let i=0;function next(){if(i<text.length){el.value+=text[i];['input','change','keyup'].forEach(t=>el.dispatchEvent(new Event(t,{bubbles:true})));i++;setTimeout(next,22+Math.random()*42);}else if(cb)cb();}next();}
 
 function getAnswer(){try{
@@ -64,7 +64,7 @@ function findAdvanceButton(){
 
 /* ── UI ── */
 const panel=document.createElement('div');panel.id=ID;
-panel.style.cssText='position:fixed;top:80px;right:18px;width:270px;background:#0f0f0f;color:#fff;border:2px solid #ff4d4d;border-radius:10px;padding:0;z-index:2147483647;font-family:monospace;font-size:12px;box-shadow:0 12px 40px rgba(0,0,0,0.95);user-select:none;';
+panel.style.cssText='position:fixed;top:80px;right:18px;width:270px;max-width:calc(100vw - 36px);background:#0f0f0f;color:#fff;border:2px solid #ff4d4d;border-radius:10px;padding:0;z-index:2147483647;font-family:monospace;font-size:12px;box-shadow:0 12px 40px rgba(0,0,0,0.95);user-select:none;-webkit-user-select:none;';
 panel.innerHTML=`
 <div id="${ID}-head" style="background:#1a1a1a;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2a2a2a;border-radius:8px 8px 0 0;cursor:move;">
   <span style="color:#ff4d4d;font-weight:bold;font-size:13px;letter-spacing:2px;">WRAITH</span>
@@ -98,7 +98,7 @@ panel.innerHTML=`
       <div id="${ID}-qcount" style="color:#eee;font-size:15px;font-weight:bold;margin-top:2px;">0</div>
     </div>
     <div style="flex:1;background:#1a1a1a;border:1px solid #222;border-radius:5px;padding:6px 8px;text-align:center;">
-      <div style="color:#444;font-size:9px;text-transform:uppercase;letter-spacing:1px;">wrong / set</div>
+      <div style="color:#444;font-size:9px;text-transform:uppercase;letter-spacing:1px;">wrong / goal</div>
       <div id="${ID}-wcount" style="color:#ff6b6b;font-size:15px;font-weight:bold;margin-top:2px;">0/0</div>
     </div>
     <div style="flex:1;background:#1a1a1a;border:1px solid #222;border-radius:5px;padding:6px 8px;text-align:center;">
@@ -118,9 +118,13 @@ panel.innerHTML=`
 document.body.appendChild(panel);
 
 let drag=false,sx,sy,ox,oy;
-panel.querySelector('#'+ID+'-head').onmousedown=e=>{if(e.target.id===ID+'-x')return;drag=true;sx=e.clientX;sy=e.clientY;ox=panel.offsetLeft;oy=panel.offsetTop;};
+const head=panel.querySelector('#'+ID+'-head');
+head.onmousedown=e=>{if(e.target.id===ID+'-x')return;drag=true;sx=e.clientX;sy=e.clientY;ox=panel.offsetLeft;oy=panel.offsetTop;};
+head.addEventListener('touchstart',e=>{if(e.target.id===ID+'-x')return;const t=e.touches[0];drag=true;sx=t.clientX;sy=t.clientY;ox=panel.offsetLeft;oy=panel.offsetTop;e.preventDefault();},{passive:false});
 document.addEventListener('mousemove',e=>{if(!drag)return;panel.style.left=(ox+e.clientX-sx)+'px';panel.style.top=(oy+e.clientY-sy)+'px';});
+document.addEventListener('touchmove',e=>{if(!drag)return;const t=e.touches[0];panel.style.left=(ox+t.clientX-sx)+'px';panel.style.top=(oy+t.clientY-sy)+'px';e.preventDefault();},{passive:false});
 document.addEventListener('mouseup',()=>drag=false);
+document.addEventListener('touchend',()=>drag=false);
 
 const peekBox=panel.querySelector('#'+ID+'-peek');
 const statusEl=panel.querySelector('#'+ID+'-status');
@@ -134,7 +138,7 @@ panel.querySelector('#'+ID+'-x').onclick=()=>{stop();panel.remove();};
 let isRunning=false,isAnswering=false,loopInterval=null,countdownTimer=null,countdownSecLeft=0,scheduledNextTime=null;
 let qCount=0;
 /* per-chunk wrong tracking */
-let chunkWrongsDone=0,chunkWrongsTarget=0,lastSentenceRan=-1,lastSetNum=-1;
+let chunkWrongsDone=0,chunkWrongsTarget=0;
 
 function randBetween(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
 function newChunkTarget(){
@@ -148,15 +152,6 @@ function getCurrentSet(){
   return m?parseInt(m[1]):-1;
 }
 
-function detectChunkReset(){
-  const ran=typeof window.sentence_ran!=='undefined'?window.sentence_ran:-1;
-  const setNum=getCurrentSet();
-  let newChunk=false;
-  if(setNum>0&&setNum!==lastSetNum){newChunk=true;lastSetNum=setNum;}
-  else if(ran>=0&&ran<lastSentenceRan-1){newChunk=true;}/* sentence_ran jumped back */
-  if(ran>=0)lastSentenceRan=ran;
-  if(newChunk){chunkWrongsDone=0;chunkWrongsTarget=newChunkTarget();}
-}
 
 function updateStats(){
   qCountEl.textContent=qCount;
@@ -185,7 +180,6 @@ function waitForOK(cb){
 
 function executeAnswer(){
   isAnswering=true;
-  detectChunkReset();
   const makeWrong=chunkWrongsDone<chunkWrongsTarget&&Math.random()<0.5;
   const ans=getAnswer();
 
@@ -260,7 +254,7 @@ function tick(){
 startBtn.onclick=()=>{
   if(isRunning){stop();}
   else{
-    isRunning=true;isAnswering=false;qCount=0;chunkWrongsDone=0;chunkWrongsTarget=newChunkTarget();lastSentenceRan=-1;lastSetNum=-1;scheduledNextTime=null;
+    isRunning=true;isAnswering=false;qCount=0;chunkWrongsDone=0;chunkWrongsTarget=newChunkTarget();scheduledNextTime=null;
     startBtn.textContent='STOP';startBtn.style.background='#333';setStatus('running');
     updateStats();
     if(loopInterval)clearInterval(loopInterval);
