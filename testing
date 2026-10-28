@@ -142,9 +142,9 @@ let chunkWrongsDone=0,chunkWrongsTarget=0;
 
 function randBetween(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
 function newChunkTarget(){
-  const wMin=parseInt(panel.querySelector('#'+ID+'-wmin').value)||2;
-  const wMax=parseInt(panel.querySelector('#'+ID+'-wmax').value)||3;
-  return randBetween(wMin,wMax);
+  const wMin=parseInt(panel.querySelector('#'+ID+'-wmin').value);
+  const wMax=parseInt(panel.querySelector('#'+ID+'-wmax').value);
+  return randBetween(isNaN(wMin)?2:wMin,isNaN(wMax)?3:wMax);
 }
 
 function getCurrentSet(){
