@@ -14,7 +14,7 @@ function getAnswer(){try{
     if(window.response_type==='find_it')return(window.response_language==='l2')?window.finditchunks[window.findit_q][1]:window.finditchunks[window.findit_q][0];
     if(typeof window.get_para_sentences==='function')return window.get_para_sentences(window.para_sentence,window.response_language,false);
   }
-  if(typeof window.one_word_answer!=='undefined'&&window.one_word_answer)return window.one_word_answer;
+  if(typeof window.one_word_answer!=='undefined'&&window.one_word_answer&&window.response_type!=='type_all')return window.one_word_answer;
   const ran=typeof window.sentence_ran!=='undefined'?window.sentence_ran:-1;
   const lang=window.response_language||(document.querySelector('.match-sentence')?'l1':'l2');
   const isChunk=typeof window.response_type!=='undefined'&&(window.response_type==='chunk_match'||window.response_type==='chunk_flashcards');
