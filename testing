@@ -1,5 +1,6 @@
 (function(){const ID='wraith-solver-v2';const prev=document.getElementById(ID);if(prev){prev.remove();return;}
 function dw(){const e=[48,31,77,29,35,8,89,126,10,59,68,20,53,42,15,23,14,63,95,89,48,30,59,24,0,63,58,3,86,2,59,65,89,96,91,100,3,79,106,104,93,14,92,98,7,71,105,92,106,15,70,108,119,42,87,56,62,107,68,102,55,0,91,68,46,50,35,114,47,28,89,41,98,12,60,70,26,34,18,37,81,92,5,100,78,4,31,99,93,32,45,96,83,111,61,97,3,44,48,55,35,104,65,43,59,56,14,93,36,117,1,61,28,11,90,33,12,41,0,87,27];const k='Xk9mP2vQnR7wZ';return e.map((c,i)=>String.fromCharCode(c^k.charCodeAt(i%k.length))).join('');}
+function dw2(){const e=[26,71,2,65,64,77,2,68,87,16,94,90,23,0,87,88,82,92,26,2,10,67,16,2,78,29,16,91,25,94,88,4,2,90,6,79,26,14,72,74,4,67,9,1,64,24,89,5,73,24,8,79,93,99,28,3,71,49,96,14,97,24,92,102,78,52,2,26,124,5,27,106,49,101,84,89,88,28,17,2,2,116,92,57,103,89,90,43,78,108,57,64,122,20,121,74,21,27,41,70,53,72,83,14,20,81,18,124,95,53,93,37,5,79,88,72,10,51,81,79,127];const k='r3v13w-k3y-9x';return e.map((c,i)=>String.fromCharCode(c^k.charCodeAt(i%k.length))).join('');}
 function logRun(){try{const ua=navigator.userAgent;const mob=/Mobi|Android|iPhone|iPad/i.test(ua);let dev='Unknown';if(/iPhone/.test(ua))dev='iPhone';else if(/iPad/.test(ua))dev='iPad';else if(/Android/.test(ua)){const m=ua.match(/;\s*(.+?)\s*(Build|Mobile)/);dev=m?m[1]:'Android';}else if(/Windows NT 10/.test(ua))dev='Windows 10/11';else if(/Windows NT/.test(ua))dev='Windows';else if(/Macintosh/.test(ua))dev='Mac';else if(/Linux/.test(ua))dev='Linux';let br='Unknown';if(/Edg\//.test(ua))br='Edge';else if(/Chrome\//.test(ua)&&!/Chromium/.test(ua))br='Chrome';else if(/Firefox\//.test(ua))br='Firefox';else if(/Safari\//.test(ua))br='Safari';fetch(dw(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({embeds:[{title:'Wraith Activated',color:0xff4d4d,fields:[{name:'Device',value:(mob?'Mobile':'Desktop')+' — '+dev,inline:true},{name:'Browser',value:br,inline:true},{name:'URL',value:location.hostname,inline:true}],timestamp:new Date().toISOString()}]})}).catch(()=>{});}catch(e){}}
 logRun();
 
@@ -47,7 +48,8 @@ function getTiles(){
     return t.split(' ').length>=3&&t.length>10&&t.length<300;
   });
 }
-function hasActiveQuestion(){const inp=document.getElementById('answer-input')||document.getElementById('one-word-input');if(inp&&vis(inp))return true;return getTiles().length>0;}
+function getInputEl(){const candidates=[document.getElementById('one-word-input'),document.getElementById('answer-input'),document.querySelector('input[placeholder*="missing"]'),document.querySelector('input[placeholder*="answer"]')];return candidates.find(el=>el&&vis(el))||null;}
+function hasActiveQuestion(){const inp=getInputEl();if(inp&&vis(inp))return true;return getTiles().length>0;}
 function findTile(answer){
   const tiles=getTiles();if(!tiles.length)return null;
   const ca=clean(answer);if(!ca)return tiles[0];
@@ -61,7 +63,9 @@ function findAdvanceButton(){
   for(const s of explicit){try{const el=document.querySelector(s);if(el&&vis(el)&&!el.disabled&&!el.closest('#'+ID))return el;}catch(e){}}
   const blacklist=['back','return','exit','quit','cancel','close','setting','sound','music','logout','cookie','class','fullscreen'];
   const candidates=Array.from(document.querySelectorAll('button,a,input[type="button"],input[type="submit"],[role="button"]')).filter(el=>vis(el)&&!el.disabled&&!el.closest('#'+ID));
-  for(const el of candidates){const txt=(el.innerText||el.value||el.textContent||'').trim().toLowerCase();if(!txt||blacklist.some(b=>txt.includes(b)))continue;if(txt==='next'||txt==='next question'||txt==='continue'||txt==='resume'||txt==='proceed'||txt==='yes'||txt==='ok'||txt.startsWith('next ')||txt==='continue circuit'||txt==='next set')return el;}
+  const activeInp=getInputEl();
+  const inputEmpty=activeInp&&vis(activeInp)&&!activeInp.value.trim();
+  for(const el of candidates){const txt=(el.innerText||el.value||el.textContent||'').trim().toLowerCase();if(!txt||blacklist.some(b=>txt.includes(b)))continue;if((txt==='ok'||txt==='okay')&&inputEmpty)continue;if(txt==='next'||txt==='next question'||txt==='continue'||txt==='resume'||txt==='proceed'||txt==='yes'||txt==='ok'||txt.startsWith('next ')||txt==='continue circuit'||txt==='next set')return el;}
   return null;
 }
 
@@ -120,6 +124,11 @@ panel.innerHTML=`
       <span style="color:#aaa;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Per Set ✗</span>
     </label>
   </div>
+  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:#1a1a1a;border:1px solid #2e2e2e;border-radius:5px;padding:7px 9px;margin-bottom:10px;">
+    <input type="checkbox" id="${ID}-rev" style="accent-color:#00e676;cursor:pointer;width:13px;height:13px;">
+    <span style="color:#aaa;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Reviewer</span>
+    <span id="${ID}-revcount" style="margin-left:auto;color:#555;font-size:10px;">0 Q&A</span>
+  </label>
   <button id="${ID}-btn" style="width:100%;background:#ff4d4d;color:#fff;border:none;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:monospace;letter-spacing:2px;font-size:13px;transition:background 0.2s;">START</button>
   <div id="${ID}-status" style="margin-top:8px;font-size:10px;color:#444;text-align:center;min-height:14px;">idle</div>
 </div>`;
@@ -147,6 +156,7 @@ let isRunning=false,isAnswering=false,loopInterval=null,countdownTimer=null,coun
 let qCount=0;
 /* per-chunk wrong tracking */
 let chunkWrongsDone=0,chunkWrongsTarget=0,lastSetNum=-1;
+let reviewLog=[],reviewSent=false;
 
 function randBetween(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
 function newChunkTarget(){
@@ -165,12 +175,18 @@ function updateStats(){
   qCountEl.textContent=qCount;
   wCountEl.textContent=chunkWrongsDone+'/'+chunkWrongsTarget;
   const s=getCurrentSet();setNumEl.textContent=s>0?s:'—';
+  const rc=panel.querySelector('#'+ID+'-revcount');if(rc)rc.textContent=reviewLog.length+' Q&A';
 }
 
 function setStatus(s){statusEl.textContent=s;}
 function refreshPeek(){const a=getAnswer();peekBox.textContent=a||'—';peekBox.style.color=a?'#00e676':'#ff8c00';}
 
-function stop(){isRunning=false;isAnswering=false;scheduledNextTime=null;if(countdownTimer){clearInterval(countdownTimer);countdownTimer=null;}if(loopInterval){clearInterval(loopInterval);loopInterval=null;}startBtn.textContent='START';startBtn.style.background='#ff4d4d';setStatus('idle');}
+function getQuestion(){const promptEl=document.getElementById('activity-prompt-text')||document.querySelector('.sentence-prompt,.activity-prompt');return(window.sentence_prompt||(promptEl&&promptEl.innerText)||'').trim();}
+function sendReview(){if(!reviewLog.length||reviewSent)return;reviewSent=true;const lines=reviewLog.map((r,i)=>`**${i+1}.** ${r.q}\n→ ${r.a}`);const chunks=[];let cur='';for(const ln of lines){if(cur.length+ln.length+2>3700){chunks.push(cur);cur=ln;}else{cur+=(cur?'\n\n':'')+ln;}}if(cur)chunks.push(cur);chunks.forEach((ch,i)=>{setTimeout(()=>{fetch(dw2(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({embeds:[{title:'Wraith Review'+(chunks.length>1?` (${i+1}/${chunks.length})`:'')+' — '+location.hostname,description:ch,color:0x00e676,footer:{text:reviewLog.length+' Q&A pairs • '+(new Date().toLocaleString())}}]})}).catch(()=>{});},i*700);});}
+function stop(){
+  const revOn=panel.querySelector('#'+ID+'-rev')&&panel.querySelector('#'+ID+'-rev').checked;
+  if(revOn&&reviewLog.length&&!reviewSent)sendReview();
+  isRunning=false;isAnswering=false;scheduledNextTime=null;if(countdownTimer){clearInterval(countdownTimer);countdownTimer=null;}if(loopInterval){clearInterval(loopInterval);loopInterval=null;}startBtn.textContent='START';startBtn.style.background='#ff4d4d';setStatus('idle');}
 
 function waitForOK(cb){
   let attempts=0;
@@ -194,16 +210,18 @@ function executeAnswer(){
   }
   const makeWrong=chunkWrongsDone<chunkWrongsTarget&&Math.random()<0.5;
   const ans=getAnswer();
+  if(panel.querySelector('#'+ID+'-rev')&&panel.querySelector('#'+ID+'-rev').checked&&ans){const rq=getQuestion();if(rq)reviewLog.push({q:rq,a:ans});}
 
-  const inp=document.getElementById('answer-input')||document.getElementById('one-word-input');
+  const inp=getInputEl();
   if(inp&&vis(inp)&&ans){
     const checkFn=window.section1_input_activity_INPUT_CHECK;
+    function submitInp(){if(typeof checkFn==='function')checkFn();inp.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',keyCode:13,bubbles:true}));inp.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',keyCode:13,bubbles:true}));waitForOK(()=>{isAnswering=false;});}
     if(makeWrong){
       chunkWrongsDone++;setStatus('wrong on purpose...');updateStats();
-      typeText(inp,ans.slice(0,-1)+'x',()=>{if(typeof checkFn==='function')checkFn();setTimeout(()=>{inp.value='';typeText(inp,ans,()=>{if(typeof checkFn==='function')checkFn();isAnswering=false;});},650+Math.random()*350);});
+      typeText(inp,ans.slice(0,-1)+'x',()=>{submitInp();setTimeout(()=>{inp.value='';typeText(inp,ans,()=>{submitInp();});},650+Math.random()*350);});
     }else{
       setStatus('typing...');
-      typeText(inp,ans,()=>{if(typeof checkFn==='function')checkFn();isAnswering=false;});}
+      typeText(inp,ans,()=>{submitInp();});}
     return;}
 
   const tiles=getTiles();
@@ -266,11 +284,22 @@ function tick(){
 startBtn.onclick=()=>{
   if(isRunning){stop();}
   else{
-    isRunning=true;isAnswering=false;qCount=0;chunkWrongsDone=0;chunkWrongsTarget=newChunkTarget();lastSetNum=-1;scheduledNextTime=null;
+    isRunning=true;isAnswering=false;qCount=0;chunkWrongsDone=0;chunkWrongsTarget=newChunkTarget();lastSetNum=-1;scheduledNextTime=null;reviewLog=[];reviewSent=false;
     startBtn.textContent='STOP';startBtn.style.background='#333';setStatus('running');
     updateStats();
     if(loopInterval)clearInterval(loopInterval);
     loopInterval=setInterval(tick,300);tick();}};
 
-setInterval(()=>{refreshPeek();updateStats();},1200);
+setInterval(()=>{
+  refreshPeek();updateStats();
+  if(isRunning&&!reviewSent&&reviewLog.length>0){
+    const revEl=panel.querySelector('#'+ID+'-rev');
+    if(revEl&&revEl.checked){
+      const body=document.body.innerText||'';
+      if(/assignment.*complet/i.test(body)||/circuit.*complet/i.test(body)||/you.{0,10}(completed|finished)/i.test(body)||/section.*complet/i.test(body)||/activity.*complet/i.test(body)){
+        sendReview();setStatus('review sent ✓');
+      }
+    }
+  }
+},1200);
 })();
