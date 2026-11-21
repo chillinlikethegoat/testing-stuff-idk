@@ -69,6 +69,32 @@ function findTile(answer){
   for(const t of tiles){const ct=clean(t.innerText||t.textContent);const tWords=ct.split(' ').filter(w=>w.length>2);const hits=tWords.filter(w=>aWords.has(w)).length;const score=hits/(Math.max(aWords.size,tWords.length)||1);if(score>bestScore){bestScore=score;best=t;}}
   return bestScore>0.35?best:tiles[0];
 }
+/* click_all tile finder — tracks each chunk we've clicked so matching uses REMAINING not full answer */
+let clickedChunks=[],currentChunkSentRan=-1;
+function resetClickedChunks(){clickedChunks=[];currentChunkSentRan=typeof window.sentence_ran!=='undefined'?window.sentence_ran:-1;}
+function findTileForClickAll(answer){
+  const tiles=getTiles();if(!tiles.length)return null;
+  const ran=typeof window.sentence_ran!=='undefined'?window.sentence_ran:-1;
+  if(ran!==currentChunkSentRan){clickedChunks=[];currentChunkSentRan=ran;}
+  const ca=clean(answer);
+  // build "already clicked" string from tracked chunks
+  let built='';
+  for(const c of clickedChunks){
+    const next=(built?built+' ':'')+c;
+    if(ca.startsWith(next))built=next;else break;
+  }
+  const remaining=built?ca.slice(built.length).trim():ca;
+  if(!remaining)return null;
+  // 1. tile text exactly starts the remaining portion
+  for(const t of tiles){const ct=clean(t.innerText||t.textContent);if(ct.length>0&&remaining.startsWith(ct))return t;}
+  // 2. tile text appears earliest in remaining
+  const withPos=tiles.map(t=>{const ct=clean(t.innerText||t.textContent);return{el:t,ct,pos:ct.length>1?remaining.indexOf(ct):-1};}).filter(x=>x.pos!==-1).sort((a,b)=>a.pos-b.pos);
+  if(withPos.length)return withPos[0].el;
+  // 3. word overlap with remaining (never fall back to tiles[0] — better to skip than click wrong)
+  const remWords=new Set(remaining.split(' ').filter(w=>w.length>2));let best=null,bestScore=0;
+  for(const t of tiles){const ct=clean(t.innerText||t.textContent);const tWords=ct.split(' ').filter(w=>w.length>2);const hits=tWords.filter(w=>remWords.has(w)).length;const score=hits/(Math.max(remWords.size,tWords.length)||1);if(score>bestScore){bestScore=score;best=t;}}
+  return bestScore>0.25?best:null;
+}
 function findAdvanceButton(){
   const explicit=['#modal-confirm-yes-button','#circuit-modal-proceed','#next-q-button','#findit-next-button','.sr-start-notice button','.begin-or-resume','.btn-next','#next-btn','.next-btn','#next-button','.next-button','#next_button','.next_button','button.next','a.next','#continue-button','.continue-button','#circuit-continue','#next-question'];
   for(const s of explicit){try{const el=document.querySelector(s);if(el&&vis(el)&&!el.disabled&&!el.closest('#'+ID))return el;}catch(e){}}
@@ -145,39 +171,55 @@ panel.innerHTML=`
   <button id="${ID}-btn" style="width:100%;background:#ff4d4d;color:#fff;border:none;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:monospace;letter-spacing:2px;font-size:13px;transition:background 0.2s;">START</button>
   <div id="${ID}-status" style="margin-top:8px;font-size:10px;color:#444;text-align:center;min-height:14px;">idle</div>
 </div>
-<div id="${ID}-pane-fun" style="padding:12px 14px;display:none;">
-  <div style="margin-bottom:11px;">
-    <div style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">YOUR NAME</div>
+<div id="${ID}-pane-fun" style="padding:12px 14px;display:none;overflow-y:auto;max-height:calc(100vh - 160px);">
+  <div style="font-size:9px;color:#ff4d4d;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;padding-bottom:5px;border-bottom:1px solid #1e1e1e;">◈ IDENTITY</div>
+  <div style="margin-bottom:14px;">
+    <div style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">YOUR NAME</div>
     <div style="display:flex;gap:6px;">
-      <input id="${ID}-fun-name" type="text" placeholder="type name..." style="flex:1;background:#1a1a1a;border:1px solid #2e2e2e;color:#eee;padding:5px 8px;border-radius:5px;font-family:monospace;font-size:11px;user-select:text;-webkit-user-select:text;touch-action:manipulation;">
-      <button id="${ID}-fun-name-btn" style="background:#ff4d4d;color:#fff;border:none;padding:5px 10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;font-weight:bold;">SET</button>
+      <input id="${ID}-fun-name" type="text" placeholder="type name..." style="flex:1;background:#1a1a1a;border:1px solid #2e2e2e;color:#eee;padding:6px 8px;border-radius:5px;font-family:monospace;font-size:11px;user-select:text;-webkit-user-select:text;touch-action:manipulation;">
+      <button id="${ID}-fun-name-btn" style="background:#ff4d4d;color:#fff;border:none;padding:6px 10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;font-weight:bold;">SET</button>
     </div>
   </div>
-  <div style="margin-bottom:11px;">
-    <div style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">ASSIGNMENT TITLE</div>
+  <div style="margin-bottom:14px;">
+    <div style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">ASSIGNMENT TITLE</div>
     <div style="display:flex;gap:6px;">
-      <input id="${ID}-fun-title" type="text" placeholder="new title..." style="flex:1;background:#1a1a1a;border:1px solid #2e2e2e;color:#eee;padding:5px 8px;border-radius:5px;font-family:monospace;font-size:11px;user-select:text;-webkit-user-select:text;touch-action:manipulation;">
-      <button id="${ID}-fun-title-btn" style="background:#ff4d4d;color:#fff;border:none;padding:5px 10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;font-weight:bold;">SET</button>
+      <input id="${ID}-fun-title" type="text" placeholder="new title..." style="flex:1;background:#1a1a1a;border:1px solid #2e2e2e;color:#eee;padding:6px 8px;border-radius:5px;font-family:monospace;font-size:11px;user-select:text;-webkit-user-select:text;touch-action:manipulation;">
+      <button id="${ID}-fun-title-btn" style="background:#ff4d4d;color:#fff;border:none;padding:6px 10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;font-weight:bold;">SET</button>
     </div>
   </div>
-  <div style="margin-bottom:11px;">
-    <div style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">FAKE PROGRESS</div>
+  <div style="margin-bottom:14px;">
+    <div style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">TAB TITLE</div>
+    <div style="display:flex;gap:6px;">
+      <input id="${ID}-fun-tabtitle" type="text" placeholder="browser tab text..." style="flex:1;background:#1a1a1a;border:1px solid #2e2e2e;color:#eee;padding:6px 8px;border-radius:5px;font-family:monospace;font-size:11px;user-select:text;-webkit-user-select:text;touch-action:manipulation;">
+      <button id="${ID}-fun-tabtitle-btn" style="background:#ff4d4d;color:#fff;border:none;padding:6px 10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;font-weight:bold;">SET</button>
+    </div>
+  </div>
+  <div style="margin-bottom:14px;">
+    <div style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">FAKE PROGRESS</div>
     <div style="display:flex;gap:6px;align-items:center;">
-      <input id="${ID}-fun-pc" type="number" value="70" min="0" style="width:52px;background:#1a1a1a;border:1px solid #2e2e2e;color:#eee;padding:5px 6px;border-radius:5px;font-family:monospace;font-size:11px;user-select:text;-webkit-user-select:text;touch-action:manipulation;">
+      <input id="${ID}-fun-pc" type="number" value="70" min="0" style="width:52px;background:#1a1a1a;border:1px solid #2e2e2e;color:#eee;padding:6px 6px;border-radius:5px;font-family:monospace;font-size:11px;user-select:text;-webkit-user-select:text;touch-action:manipulation;">
       <span style="color:#555;">/</span>
-      <input id="${ID}-fun-pt" type="number" value="70" min="1" style="width:52px;background:#1a1a1a;border:1px solid #2e2e2e;color:#eee;padding:5px 6px;border-radius:5px;font-family:monospace;font-size:11px;user-select:text;-webkit-user-select:text;touch-action:manipulation;">
-      <button id="${ID}-fun-prog-btn" style="flex:1;background:#ff4d4d;color:#fff;border:none;padding:5px 8px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;font-weight:bold;">SET</button>
+      <input id="${ID}-fun-pt" type="number" value="70" min="1" style="width:52px;background:#1a1a1a;border:1px solid #2e2e2e;color:#eee;padding:6px 6px;border-radius:5px;font-family:monospace;font-size:11px;user-select:text;-webkit-user-select:text;touch-action:manipulation;">
+      <button id="${ID}-fun-prog-btn" style="flex:1;background:#ff4d4d;color:#fff;border:none;padding:6px 8px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;font-weight:bold;">SET</button>
     </div>
   </div>
-  <button id="${ID}-fun-rainbow" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:7px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:8px;">RAINBOW TILES: OFF</button>
-  <button id="${ID}-fun-neon" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:7px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:8px;">NEON GLOW: OFF</button>
-  <button id="${ID}-fun-matrix" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:7px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:8px;">MATRIX RAIN: OFF</button>
-  <button id="${ID}-fun-glitch" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:7px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:8px;">GLITCH TITLE: OFF</button>
-  <button id="${ID}-fun-confetti" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:7px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:8px;">CONFETTI BURST</button>
-  <button id="${ID}-fun-flip" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:7px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:8px;">PAGE FLIP: OFF</button>
-  <button id="${ID}-fun-strobe" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:7px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:8px;">STROBE: OFF</button>
-  <button id="${ID}-fun-mute" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:7px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:8px;">MUTE ALL AUDIO: OFF</button>
-  <button id="${ID}-ghost" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:7px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;">GHOST MODE: OFF</button>
+  <div style="font-size:9px;color:#ff4d4d;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;margin-top:4px;padding-bottom:5px;border-bottom:1px solid #1e1e1e;">◈ VISUAL EFFECTS</div>
+  <button id="${ID}-fun-rainbow" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:10px;">RAINBOW TILES: OFF</button>
+  <button id="${ID}-fun-neon" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:10px;">NEON GLOW: OFF</button>
+  <button id="${ID}-fun-matrix" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:10px;">MATRIX RAIN: OFF</button>
+  <button id="${ID}-fun-cursor" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:10px;">CURSOR TRAIL: OFF</button>
+  <button id="${ID}-fun-snow" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:10px;">SNOW: OFF</button>
+  <div style="font-size:9px;color:#ff4d4d;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;margin-top:4px;padding-bottom:5px;border-bottom:1px solid #1e1e1e;">◈ PAGE TRICKS</div>
+  <button id="${ID}-fun-glitch" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:10px;">GLITCH TITLE: OFF</button>
+  <button id="${ID}-fun-shake" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:10px;">SCREEN SHAKE: OFF</button>
+  <button id="${ID}-fun-flip" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:10px;">PAGE FLIP: OFF</button>
+  <button id="${ID}-fun-dark" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:10px;">DARK OVERLAY: OFF</button>
+  <div style="font-size:9px;color:#ff4d4d;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;margin-top:4px;padding-bottom:5px;border-bottom:1px solid #1e1e1e;">◈ EXTRAS</div>
+  <button id="${ID}-fun-confetti" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:10px;">CONFETTI BURST</button>
+  <button id="${ID}-fun-strobe" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:10px;">STROBE: OFF</button>
+  <button id="${ID}-fun-xp" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:10px;">XP BAR: OFF</button>
+  <button id="${ID}-fun-mute" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:10px;">MUTE ALL AUDIO: OFF</button>
+  <button id="${ID}-ghost" style="width:100%;background:#1a1a1a;color:#ccc;border:1px solid #2a2a2a;padding:10px;border-radius:5px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px;">GHOST MODE: OFF</button>
 </div>`;
 document.body.appendChild(panel);
 
@@ -216,7 +258,7 @@ tabSolver.onclick=()=>switchTab('solver');
 tabFun.onclick=()=>switchTab('fun');
 
 /* ── fun tab ── */
-let solverStartTime=null,ghostOn=false,rainbowOn=false,rainbowStyle=null,neonOn=false,neonStyle=null,matrixOn=false,matrixCanvas=null,glitchOn=false,glitchInterval=null,glitchTarget=null,glitchOrig=null,flipOn=false,strobeOn=false,strobeInterval=null;
+let solverStartTime=null,ghostOn=false,rainbowOn=false,rainbowStyle=null,neonOn=false,neonStyle=null,matrixOn=false,matrixCanvas=null,glitchOn=false,glitchInterval=null,glitchTarget=null,glitchOrig=null,flipOn=false,strobeOn=false,strobeInterval=null,cursorTrailOn=false,cursorTrailHandler=null,snowOn=false,snowCanvas=null,shakeOn=false,shakeInterval=null,darkOn=false,darkOverlayEl=null,xpOn=false,xpBarEl=null,xpFillEl=null,xpLvl=1,xpCur=0,xpMax=10;
 tabFun.onclick=()=>switchTab('fun');
 tabSolver.onclick=()=>switchTab('solver');
 
@@ -355,6 +397,92 @@ panel.querySelector('#'+ID+'-ghost').onclick=function(){
   }else{panel.onmouseenter=panel.onmouseleave=null;}
 };
 
+panel.querySelector('#'+ID+'-fun-tabtitle-btn').onclick=()=>{
+  const val=panel.querySelector('#'+ID+'-fun-tabtitle').value.trim();if(!val)return;
+  document.title=val;
+};
+
+panel.querySelector('#'+ID+'-fun-cursor').onclick=function(){
+  cursorTrailOn=!cursorTrailOn;
+  this.textContent='CURSOR TRAIL: '+(cursorTrailOn?'ON':'OFF');
+  this.style.color=cursorTrailOn?'#ff4d4d':'#ccc';
+  if(!document.querySelector('style[data-wraith-ct]')){const s=document.createElement('style');s.setAttribute('data-wraith-ct','1');s.textContent='@keyframes _wct{0%{transform:scale(1);opacity:0.9}100%{transform:scale(0);opacity:0}}';document.head.appendChild(s);}
+  if(cursorTrailOn){
+    const cols=['#ff4d4d','#ff7700','#ffee00','#00cc44','#0088ff','#9900ff','#ff88ff'];
+    cursorTrailHandler=e=>{
+      const d=document.createElement('div');const size=4+Math.random()*6;
+      d.style.cssText=`position:fixed;left:${e.clientX-size/2}px;top:${e.clientY-size/2}px;width:${size}px;height:${size}px;background:${cols[Math.floor(Math.random()*cols.length)]};border-radius:50%;pointer-events:none;z-index:9999997;animation:_wct ${0.4+Math.random()*0.4}s ease-out forwards;`;
+      document.body.appendChild(d);setTimeout(()=>{try{d.remove();}catch(e){}},900);
+    };
+    document.addEventListener('mousemove',cursorTrailHandler);
+  }else{if(cursorTrailHandler){document.removeEventListener('mousemove',cursorTrailHandler);cursorTrailHandler=null;}}
+};
+
+panel.querySelector('#'+ID+'-fun-snow').onclick=function(){
+  snowOn=!snowOn;
+  this.textContent='SNOW: '+(snowOn?'ON':'OFF');
+  this.style.color=snowOn?'#ff4d4d':'#ccc';
+  if(snowOn){
+    snowCanvas=document.createElement('canvas');
+    snowCanvas.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999996;pointer-events:none;';
+    document.body.appendChild(snowCanvas);
+    const ctx=snowCanvas.getContext('2d');
+    snowCanvas.width=window.innerWidth;snowCanvas.height=window.innerHeight;
+    const flakes=Array.from({length:120},()=>({x:Math.random()*snowCanvas.width,y:Math.random()*snowCanvas.height,r:1+Math.random()*3,speed:0.5+Math.random()*1.5,drift:Math.random()*0.6-0.3}));
+    const loop=()=>{
+      ctx.clearRect(0,0,snowCanvas.width,snowCanvas.height);
+      ctx.fillStyle='rgba(255,255,255,0.88)';
+      flakes.forEach(f=>{ctx.beginPath();ctx.arc(f.x,f.y,f.r,0,Math.PI*2);ctx.fill();f.y+=f.speed;f.x+=f.drift;if(f.y>snowCanvas.height){f.y=-5;f.x=Math.random()*snowCanvas.width;}if(f.x<0||f.x>snowCanvas.width)f.x=Math.random()*snowCanvas.width;});
+      snowCanvas._rid=requestAnimationFrame(loop);
+    };loop();
+  }else{if(snowCanvas){if(snowCanvas._rid)cancelAnimationFrame(snowCanvas._rid);snowCanvas.remove();snowCanvas=null;}}
+};
+
+panel.querySelector('#'+ID+'-fun-shake').onclick=function(){
+  shakeOn=!shakeOn;
+  this.textContent='SCREEN SHAKE: '+(shakeOn?'ON':'OFF');
+  this.style.color=shakeOn?'#ff4d4d':'#ccc';
+  if(shakeOn){
+    shakeInterval=setInterval(()=>{
+      const x=(Math.random()-0.5)*6,y=(Math.random()-0.5)*6;
+      document.body.style.transform=(flipOn?'scaleX(-1) ':'')+'translate('+x+'px,'+y+'px)';
+      setTimeout(()=>{document.body.style.transform=flipOn?'scaleX(-1)':'';},80);
+    },200);
+  }else{if(shakeInterval){clearInterval(shakeInterval);shakeInterval=null;}document.body.style.transform=flipOn?'scaleX(-1)':'';}
+};
+
+panel.querySelector('#'+ID+'-fun-dark').onclick=function(){
+  darkOn=!darkOn;
+  this.textContent='DARK OVERLAY: '+(darkOn?'ON':'OFF');
+  this.style.color=darkOn?'#ff4d4d':'#ccc';
+  if(darkOn){
+    darkOverlayEl=document.createElement('div');
+    darkOverlayEl.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.78);z-index:2147483640;pointer-events:none;';
+    document.body.appendChild(darkOverlayEl);
+  }else{if(darkOverlayEl){darkOverlayEl.remove();darkOverlayEl=null;}}
+};
+
+panel.querySelector('#'+ID+'-fun-xp').onclick=function(){
+  xpOn=!xpOn;
+  this.textContent='XP BAR: '+(xpOn?'ON':'OFF');
+  this.style.color=xpOn?'#ff4d4d':'#ccc';
+  if(xpOn){
+    xpLvl=1;xpCur=0;xpMax=10;
+    xpBarEl=document.createElement('div');
+    xpBarEl.style.cssText='position:fixed;bottom:0;left:0;width:100%;height:28px;background:#0a0a0a;border-top:2px solid #ff4d4d;z-index:2147483645;pointer-events:none;display:flex;align-items:center;padding:0 14px;box-sizing:border-box;gap:10px;font-family:monospace;font-size:11px;color:#fff;';
+    xpBarEl.innerHTML='<span id="_wxplv" style="color:#ff4d4d;font-weight:bold;min-width:44px;">LVL 1</span><div style="flex:1;height:10px;background:#1a1a1a;border-radius:5px;overflow:hidden;border:1px solid #2a2a2a;"><div id="_wxpf" style="height:100%;width:0%;background:linear-gradient(90deg,#ff4d4d,#ff7700);border-radius:5px;transition:width 0.4s;"></div></div><span id="_wxpn" style="color:#555;min-width:64px;text-align:right;">0 / 10 XP</span>';
+    document.body.appendChild(xpBarEl);
+    xpFillEl=document.getElementById('_wxpf');
+  }else{if(xpBarEl){xpBarEl.remove();xpBarEl=null;xpFillEl=null;}}
+};
+function tickXP(){
+  if(!xpOn||!xpFillEl)return;
+  let cur=qCount;while(cur>=xpMax){cur-=xpMax;xpLvl++;xpMax=Math.round(xpMax*1.4);}xpCur=cur;
+  xpFillEl.style.width=((xpCur/xpMax)*100)+'%';
+  const lv=document.getElementById('_wxplv');if(lv)lv.textContent='LVL '+xpLvl;
+  const nx=document.getElementById('_wxpn');if(nx)nx.textContent=xpCur+' / '+xpMax+' XP';
+}
+
 /* ── state ── */
 let isRunning=false,isAnswering=false,loopInterval=null,countdownTimer=null,countdownSecLeft=0,scheduledNextTime=null;
 let qCount=0,inChunkSequence=false;
@@ -380,6 +508,7 @@ function updateStats(){
   wCountEl.textContent=chunkWrongsDone+'/'+chunkWrongsTarget;
   const s=getCurrentSet();setNumEl.textContent=s>0?s:'—';
   const rc=panel.querySelector('#'+ID+'-revcount');if(rc)rc.textContent=reviewLog.length+' Q&A';
+  tickXP();
 }
 
 function setStatus(s){statusEl.textContent=s;}
@@ -416,7 +545,7 @@ function executeAnswer(isChunkSeq){
     if(curSet>0&&curSet!==lastSetNum){lastSetNum=curSet;chunkWrongsDone=0;chunkWrongsTarget=newChunkTarget();updateStats();}
   }
   const isInputQ=!!(getInputEl()&&vis(getInputEl()));
-  const makeWrong=!isChunkSeq&&isInputQ&&chunkWrongsDone<chunkWrongsTarget&&Math.random()<0.5;
+  const makeWrong=!isChunkSeq&&chunkWrongsDone<chunkWrongsTarget&&Math.random()<0.5;
   const ans=getAnswer();
   if(panel.querySelector('#'+ID+'-rev')&&panel.querySelector('#'+ID+'-rev').checked&&ans){const rq=getQuestion();if(rq)reviewLog.push({q:rq,a:ans});}
 
@@ -434,13 +563,16 @@ function executeAnswer(isChunkSeq){
 
   const tiles=getTiles();
   if(tiles.length>0){
-    const target=ans?findTile(ans):tiles[0];
-    if(makeWrong&&tiles.length>1){
+    const isClickAll=window.response_type==='click_all';
+    const target=isClickAll?(ans?findTileForClickAll(ans):null):(ans?findTile(ans):tiles[0]);
+    if(!target){isAnswering=false;return;}// no match found — wait rather than click wrong
+    if(makeWrong&&tiles.length>1&&!isClickAll){
       const wrong=tiles.find(t=>t!==target)||tiles[tiles.length-1];
       chunkWrongsDone++;setStatus('wrong tile...');updateStats();
       humanClick(wrong);
       setTimeout(()=>{setStatus('fixing...');if(target)humanClick(target);waitForOK(()=>{isAnswering=false;},tiles);},650+Math.random()*350);
     }else{
+      if(isClickAll){clickedChunks.push(clean((target.innerText||target.textContent||'').trim()));}
       setStatus('→ '+clean((target.innerText||'').slice(0,24))+'...');
       humanClick(target);waitForOK(()=>{isAnswering=false;},tiles);}
     return;}
@@ -483,7 +615,7 @@ function tick(){
       if(inChunkSequence){
         inChunkSequence=false;
         setStatus('next chunk...');
-        countdownTimer=setTimeout(()=>{countdownTimer=null;if(isRunning&&!isAnswering){qCount++;updateStats();executeAnswer(true);}},400+Math.random()*400);
+        countdownTimer=setTimeout(()=>{countdownTimer=null;if(isRunning&&!isAnswering){executeAnswer(true);}},400+Math.random()*400);
       }else{startCountdown();}
     }
     return;
@@ -502,7 +634,7 @@ function tick(){
 startBtn.onclick=()=>{
   if(isRunning){stop();}
   else{
-    isRunning=true;isAnswering=false;qCount=0;chunkWrongsDone=0;chunkWrongsTarget=newChunkTarget();lastSetNum=-1;scheduledNextTime=null;inChunkSequence=false;reviewLog=[];reviewSent=false;solverStartTime=Date.now();
+    isRunning=true;isAnswering=false;qCount=0;chunkWrongsDone=0;chunkWrongsTarget=newChunkTarget();lastSetNum=-1;scheduledNextTime=null;inChunkSequence=false;reviewLog=[];reviewSent=false;solverStartTime=Date.now();clickedChunks=[];currentChunkSentRan=-1;
     startBtn.textContent='STOP';startBtn.style.background='#333';setStatus('running');
     updateStats();
     if(loopInterval)clearInterval(loopInterval);
