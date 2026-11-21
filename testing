@@ -566,11 +566,19 @@ function executeAnswer(isChunkSeq){
     const isClickAll=window.response_type==='click_all';
     const target=isClickAll?(ans?findTileForClickAll(ans):null):(ans?findTile(ans):tiles[0]);
     if(!target){isAnswering=false;return;}// no match found — wait rather than click wrong
-    if(makeWrong&&tiles.length>1&&!isClickAll){
+    if(makeWrong&&tiles.length>1){
       const wrong=tiles.find(t=>t!==target)||tiles[tiles.length-1];
       chunkWrongsDone++;setStatus('wrong tile...');updateStats();
       humanClick(wrong);
-      setTimeout(()=>{setStatus('fixing...');if(target)humanClick(target);waitForOK(()=>{isAnswering=false;},tiles);},650+Math.random()*350);
+      setTimeout(()=>{
+        setStatus('fixing...');
+        const fixTarget=isClickAll?findTileForClickAll(ans):(findTile(ans)||target);
+        if(fixTarget){
+          if(isClickAll)clickedChunks.push(clean((fixTarget.innerText||fixTarget.textContent||'').trim()));
+          humanClick(fixTarget);
+        }
+        waitForOK(()=>{isAnswering=false;},getTiles());
+      },650+Math.random()*350);
     }else{
       if(isClickAll){clickedChunks.push(clean((target.innerText||target.textContent||'').trim()));}
       setStatus('→ '+clean((target.innerText||'').slice(0,24))+'...');
